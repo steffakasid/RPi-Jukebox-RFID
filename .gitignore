@@ -19,17 +19,11 @@ htdocs/config.php
 scripts/deviceName.txt
 scripts/gpio-buttons.py
 
-shared/*
-playlists/*
-logs/*
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 
-.git*
 *~
-*.*~
 *.pyc
 *.idea
 
