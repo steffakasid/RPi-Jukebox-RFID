@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 #
 # see https://github.com/MiczFlor/RPi-Jukebox-RFID for details
 # Especially the docs folder for documentation
@@ -354,6 +354,7 @@ echo "SPOTIpass=\"$SPOTIpass\"" >> $PATHDATA/PhonieboxInstall.conf
 echo "SPOTIclientid=\"$SPOTIclientid\"" >> $PATHDATA/PhonieboxInstall.conf
 echo "SPOTIclientsecret=\"$SPOTIclientsecret\"" >> $PATHDATA/PhonieboxInstall.conf
 
+if [ $SPOTinstall == "NO" ]; then
 ##################################################### 
 # Configure MPD
 
@@ -369,21 +370,22 @@ echo "#####################################################
 "
 read -r -p "Do you want to configure MPD? [Y/n] " response
 case "$response" in
-    [nN][oO]|[nN])
-    	MPDconfig=NO
-    	echo "You want to configure MPD later."
-    	echo "Hit ENTER to proceed to the next step."
-        read INPUT
-        ;;
-    *)
-    	MPDconfig=YES
-    	echo "MPD will be set up with default values."
-    	echo "Hit ENTER to proceed to the next step."
-        read INPUT
-        ;;
+	[nN][oO]|[nN])
+		MPDconfig=NO
+		echo "You want to configure MPD later."
+		echo "Hit ENTER to proceed to the next step."
+		read INPUT
+		;;
+	*)
+		MPDconfig=YES
+		echo "MPD will be set up with default values."
+		echo "Hit ENTER to proceed to the next step."
+		read INPUT
+		;;
 esac
 # append variables to config file
 echo "MPDconfig=\"$MPDconfig\"" >> $PATHDATA/PhonieboxInstall.conf
+fi
 
 ##################################################### 
 # Folder path for audio files 
@@ -483,36 +485,19 @@ sudo apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-he
 
 # use python3.7 as default
 sudo update-alternatives --install /usr/bin/python python /usr/bin/python3.7 1
-
 # Install required spotify packages
 if [ $SPOTinstall == "YES" ]
 then
-	sudo apt-get install --yes mopidy=2.2.2-1
-	sudo python2.7 -m pip install Mopidy==2.2.*
+	sudo apt-get install --yes mopidy mopidy-mpd mopidy-local mopidy-spotify
 
-	sudo apt-get --yes --allow-downgrades --allow-remove-essential --allow-change-held-packages install libspotify12 python-cffi python-ply python-pycparser python-spotify
-	sudo rm -rf /usr/lib/python2.7/dist-packages/mopidy_spotify*
-	sudo rm -rf /usr/lib/python2.7/dist-packages/Mopidy_Spotify-*
-	cd
-	sudo rm -rf mopidy-spotify
-	git clone -b fix/web_api_playlists --single-branch https://github.com/princemaxwell/mopidy-spotify.git
-	cd mopidy-spotify
-	sudo python2 setup.py install
-
-	cd
-	# should be removed, if Mopidy-Iris can be installed normally
-	# pylast >= 3.0.0 removed the python2 support
-	 sudo python2.7 -m pip install pylast==2.4.0
-	# not sure tornado still needs to be downgraded now that Mopidy 3 is not installed and tornado seems to be 5.1
- 	sudo python2.7 -m pip install 'tornado==5.0'
-	sudo python2.7 -m pip install Mopidy-Iris==3.43.0
+	sudo apt-get --yes --force-yes install libspotify12 python-cffi python-ply python-pycparser python-spotify
+	sudo apt-get --yes install libspotify12 python3-cffi python3-ply python3-pycparser python3-spotify
+	sudo systemctl enable mopidy
+	sudo python3 -m pip install Mopidy-Iris
 fi
 
 # Get github code
 cd /home/pi/
-
-# Must be changed to the correct branch!!!
-# Change to master when merging develop with master!!!
 # this needs to be replaced on develop
 git clone --branch master https://github.com/MiczFlor/RPi-Jukebox-RFID.git
 cd /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/
@@ -529,18 +514,6 @@ cd /home/pi/RPi-Jukebox-RFID
 
 # Install more required packages
 sudo python3 -m pip install -r requirements.txt
-
-# actually, for the time being most of the requirements are run here.
-# the requirements.txt version seems to throw errors. Help if you can to fix this:
-
-sudo python3 -m pip install "evdev == 0.7.0"
-sudo python3 -m pip install --upgrade youtube_dl
-sudo python3 -m pip install git+git://github.com/lthiery/SPI-Py.git#egg=spi-py
-sudo python3 -m pip install pyserial
-# spidev is currently installed via apt-get
-#sudo pip install spidev
-sudo python3 -m pip install RPi.GPIO
-sudo python3 -m pip install pi-rc522
 
 # Switch of WiFi power management
 sudo iwconfig wlan0 power off
@@ -561,15 +534,10 @@ sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/lighttpd.conf.buster-defaul
 sudo chown root:root /etc/lighttpd/lighttpd.conf
 sudo chmod 644 /etc/lighttpd/lighttpd.conf
 
-# Web server PHP7 fastcgi conf
-# -rw-r--r-- 1 root root 398 Apr 30 09:35 /etc/lighttpd/conf-available/15-fastcgi-php.conf
-sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/15-fastcgi-php.conf.buster-default.sample /etc/lighttpd/conf-available/15-fastcgi-php.conf
-sudo chown root:root /etc/lighttpd/conf-available/15-fastcgi-php.conf
-sudo chmod 644 /etc/lighttpd/conf-available/15-fastcgi-php.conf
 # settings for php.ini to support upload
 # -rw-r--r-- 1 root root 70999 Jun 14 13:50 /etc/php/7.3/cgi/php.ini
 sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/php.ini.buster-default.sample /etc/php/7.3/cgi/php.ini
-sudo chown root:root /etc/php/7.3/cgi/php.ini 
+sudo chown root:root /etc/php/7.3/cgi/php.ini
 sudo chmod 644 /etc/php/7.3/cgi/php.ini
 
 # SUDO users (adding web server here)
@@ -600,8 +568,8 @@ echo "ON" > /home/pi/RPi-Jukebox-RFID/settings/ShowCover
 sudo cp /home/pi/RPi-Jukebox-RFID/htdocs/config.php.sample /home/pi/RPi-Jukebox-RFID/htdocs/config.php
 
 # Starting web server and php7
-sudo lighttpd-enable-mod fastcgi
-sudo lighttpd-enable-mod fastcgi-php
+sudo lighttpd-enable-mod fastcgi || true
+sudo lighttpd-enable-mod fastcgi-php || true
 sudo service lighttpd force-reload
 sudo service php7.3-fpm restart
 
@@ -619,14 +587,14 @@ sudo chmod +x /home/pi/RPi-Jukebox-RFID/scripts/*.py
 # -rw-r--r-- 1 root root  304 Apr 30 10:07 phoniebox-rfid-reader.service
 # 1. delete old services (this is legacy, might throw errors but is necessary. Valid for versions < 1.1.8-beta)
 echo "### Deleting older versions of service daemons. This might throw errors, ignore them"
-sudo systemctl disable idle-watchdog
-sudo systemctl disable rfid-reader
-sudo systemctl disable startup-sound
-sudo systemctl disable gpio-buttons
-sudo rm /etc/systemd/system/rfid-reader.service 
-sudo rm /etc/systemd/system/startup-sound.service
-sudo rm /etc/systemd/system/gpio-buttons.service
-sudo rm /etc/systemd/system/idle-watchdog.service
+sudo systemctl disable idle-watchdog || true
+sudo systemctl disable rfid-reader || true
+sudo systemctl disable startup-sound || true
+sudo systemctl disable gpio-buttons || true
+sudo rm /etc/systemd/system/rfid-reader.service || true 
+sudo rm /etc/systemd/system/startup-sound.service || true
+sudo rm /etc/systemd/system/gpio-buttons.service || true
+sudo rm /etc/systemd/system/idle-watchdog.service || true
 echo "### Done with erasing old daemons. Stop ignoring errors!" 
 # 2. install new ones - this is version > 1.1.8-beta
 sudo cp /home/pi/RPi-Jukebox-RFID/misc/sampleconfigs/phoniebox-rfid-reader.service.stretch-default.sample /etc/systemd/system/phoniebox-rfid-reader.service 
@@ -880,9 +848,10 @@ echo "Reboot is needed to activate all settings"
 read -r -p "Would you like to reboot now? [Y/n] " response
 case "$response" in
     [nN][oO]|[nN])
+    	echo "You have to reboot manually!"
         ;;
     *)
-        sudo shutdown -r now
+    	sudo shutdown -r now
         ;;
 esac
 
